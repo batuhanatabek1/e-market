@@ -168,7 +168,7 @@ extension ProductListViewController: UICollectionViewDataSource, UICollectionVie
             return UICollectionViewCell()
         }
         let product = viewModel.products[indexPath.item]
-        cell.configure(with: product)
+        cell.configure(with: product, delegate: self)
         return cell
     }
 
@@ -177,7 +177,7 @@ extension ProductListViewController: UICollectionViewDataSource, UICollectionVie
         let spacing: CGFloat = 10
         let totalHorizontalSpacing = (2 * padding) + spacing
         let itemWidth = (collectionView.bounds.width - totalHorizontalSpacing) / 2
-        let itemHeight = itemWidth * 1.5
+        let itemHeight = itemWidth * 1.6
         return CGSize(width: itemWidth, height: itemHeight)
     }
 
@@ -195,6 +195,14 @@ extension ProductListViewController: UICollectionViewDataSource, UICollectionVie
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         let product = viewModel.products[indexPath.item]
-        print(product.name)
+        let detailVC = ProductDetailViewController()
+        detailVC.product = product
+        navigationController?.pushViewController(detailVC, animated: true)
+    }
+}
+
+extension ProductListViewController: ProductCellDelegate {
+    func didTapAddToCart(product: Product) {
+        print("\(product.name) added to cart!")
     }
 }

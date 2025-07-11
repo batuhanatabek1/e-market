@@ -8,6 +8,10 @@
 import UIKit
 import Kingfisher
 
+protocol ProductCellDelegate: AnyObject {
+    func didTapAddToCart(product: Product)
+}
+
 class ProductCell: UICollectionViewCell {
     
     private let imageView = UIImageView()
@@ -23,13 +27,12 @@ class ProductCell: UICollectionViewCell {
         return button
     }()
     
-    private var isFavorite: Bool = false
-    private var productId: String?
+    private var product: Product?
+    weak var delegate: ProductCellDelegate?
     
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupUI()
-        favoriteButton.addTarget(self, action: #selector(favoriteTapped), for: .touchUpInside)
     }
     
     required init?(coder: NSCoder) {
@@ -73,6 +76,9 @@ class ProductCell: UICollectionViewCell {
         
         contentView.addSubview(favoriteButton)
         
+        favoriteButton.addTarget(self, action: #selector(favoriteTapped), for: .touchUpInside)
+        addToCartButton.addTarget(self, action: #selector(addToCartTapped), for: .touchUpInside)
+        
         NSLayoutConstraint.activate([
             imageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
             imageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
@@ -100,7 +106,9 @@ class ProductCell: UICollectionViewCell {
         ])
     }
     
-    func configure(with product: Product) {
+    func configure(with product: Product, delegate: ProductCellDelegate) {
+        self.product = product
+        self.delegate = delegate
         nameLabel.text = product.name
         priceLabel.text = "\(product.price) ₺"
         if let url = URL(string: product.image) {
@@ -108,27 +116,28 @@ class ProductCell: UICollectionViewCell {
         } else {
             imageView.image = UIImage(systemName: "photo")
         }
-        
-        self.productId = product.id
-        self.isFavorite = product.isFavorite
         updateFavoriteButton()
     }
     
     @objc private func favoriteTapped() {
-        guard let id = productId else { return }
-        isFavorite.toggle()
+        self.product?.isFavorite.toggle()
         updateFavoriteButton()
         
         NotificationCenter.default.post(name: .favoritesChanged, object: nil, userInfo: [
-            "productId": id,
-            "isFavorite": isFavorite
+            "productId": product?.id ?? "",
+            "isFavorite": product?.isFavorite ?? false
         ])
     }
     
     private func updateFavoriteButton() {
-        let imageName = isFavorite ? "star.fill" : "star"
+        guard let product = product else { return }
+        let imageName = product.isFavorite ? "star.fill" : "star"
         favoriteButton.setImage(UIImage(systemName: imageName), for: .normal)
-        favoriteButton.tintColor = isFavorite ? .systemYellow : .lightGray
+        favoriteButton.tintColor = product.isFavorite ? .systemYellow : .lightGray
+    }
+    
+    @objc private func addToCartTapped() {
+        guard let product = product else { return }
+        self.delegate?.didTapAddToCart(product: product)
     }
 }
-
