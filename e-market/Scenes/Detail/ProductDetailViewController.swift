@@ -246,6 +246,7 @@ class ProductDetailViewController: UIViewController {
     
     @objc private func addToCartTapped() {
         guard let product = product else { return }
-        print("\(product.name) added to cart!")
+        CoreDataManager.shared.saveCartProduct(product)
+        NotificationCenter.default.post(name: .cartUpdated, object: nil)
     }
 }

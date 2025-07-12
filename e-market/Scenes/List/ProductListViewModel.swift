@@ -5,15 +5,33 @@
 //  Created by Batuhan Atabek on 11.07.2025.
 //
 
-class ProductListViewModel {
+protocol ProductListViewModelDelegate: AnyObject {
+    func showLoading()
+    func hideLoading()
+}
+
+protocol ProductListViewModelProtocol: AnyObject {
+    var products: [Product] { get }
+    var onDataUpdated: (() -> Void)? { get set }
+    var delegate: ProductListViewModelDelegate? { get set }
+
+    func fetchProducts()
+    func filterProducts(by searchText: String)
+    func updateFavorite(by productId: String, isFavorite: Bool)
+}
+
+class ProductListViewModel: ProductListViewModelProtocol {
     var products: [Product] = []
     private var allProducts: [Product] = []
 
     var onDataUpdated: (() -> Void)?
+    weak var delegate: ProductListViewModelDelegate?
 
     func fetchProducts() {
+        delegate?.showLoading()
         NetworkManager.shared.fetchProducts { [weak self] result in
             guard let self = self else { return }
+            self.delegate?.hideLoading()
             switch result {
             case .success(let products):
                 let favoriteIDs = CoreDataManager.shared.fetchFavoriteIDs()

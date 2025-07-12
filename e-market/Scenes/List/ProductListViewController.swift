@@ -8,7 +8,8 @@
 import UIKit
 
 class ProductListViewController: UIViewController {
-    private let viewModel = ProductListViewModel()
+    private let viewModel: ProductListViewModelProtocol = ProductListViewModel()
+    private let spinner = UIActivityIndicatorView(style: .large)
     
     private let headerView: UIView = {
         let view = UIView()
@@ -80,7 +81,8 @@ class ProductListViewController: UIViewController {
         setupViews()
         setupCollectionView()
         observeFavoritesChanged()
-        
+        setupViewModel()
+        setupLoadingSpinner()
         viewModel.onDataUpdated = { [weak self] in
             DispatchQueue.main.async {
                 self?.collectionView.reloadData()
@@ -105,6 +107,19 @@ class ProductListViewController: UIViewController {
         }
         viewModel.updateFavorite(by: productId, isFavorite: isFavorite)
         collectionView.reloadData()
+    }
+    
+    private func setupViewModel() {
+        viewModel.delegate = self
+    }
+    
+    func setupLoadingSpinner() {
+        view.addSubview(spinner)
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
     }
 
     private func setupViews() {
@@ -149,6 +164,7 @@ class ProductListViewController: UIViewController {
         collectionView.dataSource = self
         collectionView.delegate = self
         collectionView.register(ProductCell.self, forCellWithReuseIdentifier: "ProductCell")
+        collectionView.register(EmptyCell.self, forCellWithReuseIdentifier: "EmptyCell")
     }
 
     @objc private func searchTextChanged(_ sender: UITextField) {
@@ -160,19 +176,33 @@ class ProductListViewController: UIViewController {
 extension ProductListViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return viewModel.products.count
+        return max(viewModel.products.count, 1)
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ProductCell", for: indexPath) as? ProductCell else {
-            return UICollectionViewCell()
+        if viewModel.products.isEmpty {
+            if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "EmptyCell", for: indexPath) as? EmptyCell {
+                return cell
+            } else {
+                return UICollectionViewCell()
+            }
         }
-        let product = viewModel.products[indexPath.item]
-        cell.configure(with: product, delegate: self)
-        return cell
+        
+        if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ProductCell", for: indexPath) as? ProductCell {
+            let product = viewModel.products[indexPath.item]
+            cell.configure(with: product, delegate: self)
+            return cell
+        }
+        
+        return UICollectionViewCell()
     }
 
+
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        if viewModel.products.isEmpty {
+            return CGSize(width: collectionView.bounds.width, height: collectionView.bounds.height - 150)
+        }
+
         let padding: CGFloat = 16
         let spacing: CGFloat = 10
         let totalHorizontalSpacing = (2 * padding) + spacing
@@ -180,6 +210,7 @@ extension ProductListViewController: UICollectionViewDataSource, UICollectionVie
         let itemHeight = itemWidth * 1.6
         return CGSize(width: itemWidth, height: itemHeight)
     }
+
 
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
         return 16
@@ -194,6 +225,7 @@ extension ProductListViewController: UICollectionViewDataSource, UICollectionVie
     }
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        guard !viewModel.products.isEmpty else { return }
         let product = viewModel.products[indexPath.item]
         let detailVC = ProductDetailViewController()
         detailVC.product = product
@@ -203,6 +235,17 @@ extension ProductListViewController: UICollectionViewDataSource, UICollectionVie
 
 extension ProductListViewController: ProductCellDelegate {
     func didTapAddToCart(product: Product) {
-        print("\(product.name) added to cart!")
+        CoreDataManager.shared.saveCartProduct(product)
+        NotificationCenter.default.post(name: .cartUpdated, object: nil)
+    }
+}
+
+extension ProductListViewController: ProductListViewModelDelegate {
+    func showLoading() {
+        spinner.startAnimating()
+    }
+    
+    func hideLoading() {
+        spinner.stopAnimating()
     }
 }

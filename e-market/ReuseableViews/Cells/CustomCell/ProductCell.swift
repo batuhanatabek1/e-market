@@ -106,7 +106,7 @@ class ProductCell: UICollectionViewCell {
         ])
     }
     
-    func configure(with product: Product, delegate: ProductCellDelegate) {
+    func configure(with product: Product, delegate: ProductCellDelegate?) {
         self.product = product
         self.delegate = delegate
         nameLabel.text = product.name
